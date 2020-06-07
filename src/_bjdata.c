@@ -1,11 +1,12 @@
 /*
+ * Copyright (c) 2020 Qianqian Fang <q.fang at neu.edu>. All rights reserved.
  * Copyright (c) 2019 Iotic Labs Ltd. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://github.com/Iotic-Labs/py-ubjson/blob/master/LICENSE
+ *     https://github.com/fangq/pybj/blob/master/LICENSE
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,22 +24,22 @@
 /******************************************************************************/
 
 // container_count, sort_keys, no_float32
-static _ubjson_encoder_prefs_t _ubjson_encoder_prefs_defaults = { NULL, 0, 0, 1 };
+static _bjdata_encoder_prefs_t _bjdata_encoder_prefs_defaults = { NULL, 0, 0, 1 };
 
 // no_bytes, object_pairs_hook
-static _ubjson_decoder_prefs_t _ubjson_decoder_prefs_defaults = { NULL, NULL, 0, 0 };
+static _bjdata_decoder_prefs_t _bjdata_decoder_prefs_defaults = { NULL, NULL, 0, 0 };
 
 /******************************************************************************/
 
-PyDoc_STRVAR(_ubjson_dump__doc__, "See pure Python version (encoder.dump) for documentation.");
-#define FUNC_DEF_DUMP {"dump", (PyCFunction)_ubjson_dump, METH_VARARGS | METH_KEYWORDS, _ubjson_dump__doc__}
+PyDoc_STRVAR(_bjdata_dump__doc__, "See pure Python version (encoder.dump) for documentation.");
+#define FUNC_DEF_DUMP {"dump", (PyCFunction)_bjdata_dump, METH_VARARGS | METH_KEYWORDS, _bjdata_dump__doc__}
 static PyObject*
-_ubjson_dump(PyObject *self, PyObject *args, PyObject *kwargs) {
+_bjdata_dump(PyObject *self, PyObject *args, PyObject *kwargs) {
     static const char *format = "OO|iiiO:dump";
     static char *keywords[] = {"obj", "fp", "container_count", "sort_keys", "no_float32", "default", NULL};
 
-    _ubjson_encoder_buffer_t *buffer = NULL;
-    _ubjson_encoder_prefs_t prefs = _ubjson_encoder_prefs_defaults;
+    _bjdata_encoder_buffer_t *buffer = NULL;
+    _bjdata_encoder_prefs_t prefs = _bjdata_encoder_prefs_defaults;
     PyObject *obj;
     PyObject *fp;
     PyObject *fp_write = NULL;
@@ -49,30 +50,30 @@ _ubjson_dump(PyObject *self, PyObject *args, PyObject *kwargs) {
         goto bail;
     }
     BAIL_ON_NULL(fp_write = PyObject_GetAttrString(fp, "write"));
-    BAIL_ON_NULL(buffer = _ubjson_encoder_buffer_create(&prefs, fp_write));
+    BAIL_ON_NULL(buffer = _bjdata_encoder_buffer_create(&prefs, fp_write));
     // buffer creation has added reference
     Py_CLEAR(fp_write);
 
-    BAIL_ON_NONZERO(_ubjson_encode_value(obj, buffer));
-    BAIL_ON_NULL(obj = _ubjson_encoder_buffer_finalise(buffer));
-    _ubjson_encoder_buffer_free(&buffer);
+    BAIL_ON_NONZERO(_bjdata_encode_value(obj, buffer));
+    BAIL_ON_NULL(obj = _bjdata_encoder_buffer_finalise(buffer));
+    _bjdata_encoder_buffer_free(&buffer);
     return obj;
 
 bail:
     Py_XDECREF(fp_write);
-    _ubjson_encoder_buffer_free(&buffer);
+    _bjdata_encoder_buffer_free(&buffer);
     return NULL;
 }
 
-PyDoc_STRVAR(_ubjson_dumpb__doc__, "See pure Python version (encoder.dumpb) for documentation.");
-#define FUNC_DEF_DUMPB {"dumpb", (PyCFunction)_ubjson_dumpb, METH_VARARGS | METH_KEYWORDS, _ubjson_dumpb__doc__}
+PyDoc_STRVAR(_bjdata_dumpb__doc__, "See pure Python version (encoder.dumpb) for documentation.");
+#define FUNC_DEF_DUMPB {"dumpb", (PyCFunction)_bjdata_dumpb, METH_VARARGS | METH_KEYWORDS, _bjdata_dumpb__doc__}
 static PyObject*
-_ubjson_dumpb(PyObject *self, PyObject *args, PyObject *kwargs) {
+_bjdata_dumpb(PyObject *self, PyObject *args, PyObject *kwargs) {
     static const char *format = "O|iiiO:dumpb";
     static char *keywords[] = {"obj", "container_count", "sort_keys", "no_float32", "default", NULL};
 
-    _ubjson_encoder_buffer_t *buffer = NULL;
-    _ubjson_encoder_prefs_t prefs = _ubjson_encoder_prefs_defaults;
+    _bjdata_encoder_buffer_t *buffer = NULL;
+    _bjdata_encoder_prefs_t prefs = _bjdata_encoder_prefs_defaults;
     PyObject *obj;
     UNUSED(self);
 
@@ -81,28 +82,28 @@ _ubjson_dumpb(PyObject *self, PyObject *args, PyObject *kwargs) {
         goto bail;
     }
 
-    BAIL_ON_NULL(buffer = _ubjson_encoder_buffer_create(&prefs, NULL));
-    BAIL_ON_NONZERO(_ubjson_encode_value(obj, buffer));
-    BAIL_ON_NULL(obj = _ubjson_encoder_buffer_finalise(buffer));
-    _ubjson_encoder_buffer_free(&buffer);
+    BAIL_ON_NULL(buffer = _bjdata_encoder_buffer_create(&prefs, NULL));
+    BAIL_ON_NONZERO(_bjdata_encode_value(obj, buffer));
+    BAIL_ON_NULL(obj = _bjdata_encoder_buffer_finalise(buffer));
+    _bjdata_encoder_buffer_free(&buffer);
     return obj;
 
 bail:
-    _ubjson_encoder_buffer_free(&buffer);
+    _bjdata_encoder_buffer_free(&buffer);
     return NULL;
 }
 
 /******************************************************************************/
 
-PyDoc_STRVAR(_ubjson_load__doc__, "See pure Python version (encoder.load) for documentation.");
-#define FUNC_DEF_LOAD {"load", (PyCFunction)_ubjson_load, METH_VARARGS | METH_KEYWORDS, _ubjson_load__doc__}
+PyDoc_STRVAR(_bjdata_load__doc__, "See pure Python version (encoder.load) for documentation.");
+#define FUNC_DEF_LOAD {"load", (PyCFunction)_bjdata_load, METH_VARARGS | METH_KEYWORDS, _bjdata_load__doc__}
 static PyObject*
-_ubjson_load(PyObject *self, PyObject *args, PyObject *kwargs) {
+_bjdata_load(PyObject *self, PyObject *args, PyObject *kwargs) {
     static const char *format = "O|iOOi:load";
     static char *keywords[] = {"fp", "no_bytes", "object_hook", "object_pairs_hook", "intern_object_keys", NULL};
 
-    _ubjson_decoder_buffer_t *buffer = NULL;
-    _ubjson_decoder_prefs_t prefs = _ubjson_decoder_prefs_defaults;
+    _bjdata_decoder_buffer_t *buffer = NULL;
+    _bjdata_decoder_prefs_t prefs = _bjdata_decoder_prefs_defaults;
     PyObject *fp;
     PyObject *fp_read = NULL;
     PyObject *fp_seek = NULL;
@@ -132,32 +133,32 @@ _ubjson_load(PyObject *self, PyObject *args, PyObject *kwargs) {
     // ignore seekable() / seek get errors
     PyErr_Clear();
 
-    BAIL_ON_NULL(buffer = _ubjson_decoder_buffer_create(&prefs, fp_read, fp_seek));
+    BAIL_ON_NULL(buffer = _bjdata_decoder_buffer_create(&prefs, fp_read, fp_seek));
     // buffer creation has added references
     Py_CLEAR(fp_read);
     Py_CLEAR(fp_seek);
 
-    BAIL_ON_NULL(obj = _ubjson_decode_value(buffer, NULL));
-    BAIL_ON_NONZERO(_ubjson_decoder_buffer_free(&buffer));
+    BAIL_ON_NULL(obj = _bjdata_decode_value(buffer, NULL));
+    BAIL_ON_NONZERO(_bjdata_decoder_buffer_free(&buffer));
     return obj;
 
 bail:
     Py_XDECREF(fp_read);
     Py_XDECREF(fp_seek);
     Py_XDECREF(obj);
-    _ubjson_decoder_buffer_free(&buffer);
+    _bjdata_decoder_buffer_free(&buffer);
     return NULL;
 }
 
-PyDoc_STRVAR(_ubjson_loadb__doc__, "See pure Python version (encoder.loadb) for documentation.");
-#define FUNC_DEF_LOADB {"loadb", (PyCFunction)_ubjson_loadb, METH_VARARGS | METH_KEYWORDS, _ubjson_loadb__doc__}
+PyDoc_STRVAR(_bjdata_loadb__doc__, "See pure Python version (encoder.loadb) for documentation.");
+#define FUNC_DEF_LOADB {"loadb", (PyCFunction)_bjdata_loadb, METH_VARARGS | METH_KEYWORDS, _bjdata_loadb__doc__}
 static PyObject*
-_ubjson_loadb(PyObject *self, PyObject *args, PyObject *kwargs) {
+_bjdata_loadb(PyObject *self, PyObject *args, PyObject *kwargs) {
     static const char *format = "O|iOOi:loadb";
     static char *keywords[] = {"chars", "no_bytes", "object_hook", "object_pairs_hook", "intern_object_keys", NULL};
 
-    _ubjson_decoder_buffer_t *buffer = NULL;
-    _ubjson_decoder_prefs_t prefs = _ubjson_decoder_prefs_defaults;
+    _bjdata_decoder_buffer_t *buffer = NULL;
+    _bjdata_decoder_prefs_t prefs = _bjdata_decoder_prefs_defaults;
     PyObject *chars;
     PyObject *obj = NULL;
     UNUSED(self);
@@ -175,15 +176,15 @@ _ubjson_loadb(PyObject *self, PyObject *args, PyObject *kwargs) {
         goto bail;
     }
 
-    BAIL_ON_NULL(buffer = _ubjson_decoder_buffer_create(&prefs, chars, NULL));
+    BAIL_ON_NULL(buffer = _bjdata_decoder_buffer_create(&prefs, chars, NULL));
 
-    BAIL_ON_NULL(obj = _ubjson_decode_value(buffer, NULL));
-    BAIL_ON_NONZERO(_ubjson_decoder_buffer_free(&buffer));
+    BAIL_ON_NULL(obj = _bjdata_decode_value(buffer, NULL));
+    BAIL_ON_NONZERO(_bjdata_decoder_buffer_free(&buffer));
     return obj;
 
 bail:
     Py_XDECREF(obj);
-    _ubjson_decoder_buffer_free(&buffer);
+    _bjdata_decoder_buffer_free(&buffer);
     return NULL;
 }
 
@@ -199,13 +200,13 @@ static PyMethodDef UbjsonMethods[] = {
 static void module_free(PyObject *m)
 {
     UNUSED(m);
-    _ubjson_encoder_cleanup();
-    _ubjson_decoder_cleanup();
+    _bjdata_encoder_cleanup();
+    _bjdata_decoder_cleanup();
 }
 
 static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,  // m_base
-        "_ubjson",              // m_name
+        "_bjdata",              // m_name
         NULL,                   // m_doc
         -1,                     // m_size
         UbjsonMethods,          // m_methods
@@ -217,23 +218,23 @@ static struct PyModuleDef moduledef = {
 
 #define INITERROR return NULL
 PyObject*
-PyInit__ubjson(void)
+PyInit__bjdata(void)
 
 #else
 #define INITERROR return
 
 PyMODINIT_FUNC
-init_ubjson(void)
+init_bjdata(void)
 #endif
 {
 #if PY_MAJOR_VERSION >= 3
     PyObject *module = PyModule_Create(&moduledef);
 #else
-    PyObject *module = Py_InitModule("_ubjson", UbjsonMethods);
+    PyObject *module = Py_InitModule("_bjdata", UbjsonMethods);
 #endif
 
-    BAIL_ON_NONZERO(_ubjson_encoder_init());
-    BAIL_ON_NONZERO(_ubjson_decoder_init());
+    BAIL_ON_NONZERO(_bjdata_encoder_init());
+    BAIL_ON_NONZERO(_bjdata_decoder_init());
 
 #if PY_MAJOR_VERSION >= 3
     return module;
@@ -242,8 +243,8 @@ init_ubjson(void)
 #endif
 
 bail:
-    _ubjson_encoder_cleanup();
-    _ubjson_decoder_cleanup();
+    _bjdata_encoder_cleanup();
+    _bjdata_decoder_cleanup();
     Py_XDECREF(module);
     INITERROR;
 }

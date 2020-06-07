@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://github.com/Iotic-Labs/py-ubjson/blob/master/LICENSE
+#     https://github.com/Iotic-Labs/py-bjdata/blob/master/LICENSE
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from sys import version_info, getrecursionlimit
+from sys import version_info, getrecursionlimit, setrecursionlimit
 from functools import partial
 from io import BytesIO, SEEK_END
 from unittest import TestCase, skipUnless
@@ -22,15 +22,16 @@ from decimal import Decimal
 from struct import pack
 from collections import OrderedDict
 
-from ubjson import (dump as ubjdump, dumpb as ubjdumpb, load as ubjload, loadb as ubjloadb, EncoderException,
+from bjdata import (dump as bjddump, dumpb as bjddumpb, load as bjdload, loadb as bjdloadb, EncoderException,
                     DecoderException, EXTENSION_ENABLED)
-from ubjson.markers import (TYPE_NULL, TYPE_NOOP, TYPE_BOOL_TRUE, TYPE_BOOL_FALSE, TYPE_INT8, TYPE_UINT8, TYPE_INT16,
-                            TYPE_INT32, TYPE_INT64, TYPE_FLOAT32, TYPE_FLOAT64, TYPE_HIGH_PREC, TYPE_CHAR, TYPE_STRING,
-                            OBJECT_START, OBJECT_END, ARRAY_START, ARRAY_END, CONTAINER_TYPE, CONTAINER_COUNT)
-from ubjson.compat import INTEGER_TYPES
+from bjdata.markers import (TYPE_NULL, TYPE_NOOP, TYPE_BOOL_TRUE, TYPE_BOOL_FALSE, TYPE_INT8, TYPE_UINT8, TYPE_INT16,
+                            TYPE_INT32, TYPE_INT64, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64, TYPE_FLOAT16, TYPE_FLOAT32, TYPE_FLOAT64,
+                            TYPE_HIGH_PREC, TYPE_CHAR, TYPE_STRING, OBJECT_START, OBJECT_END, ARRAY_START, ARRAY_END,
+                            CONTAINER_TYPE, CONTAINER_COUNT)
+from bjdata.compat import INTEGER_TYPES
 # Pure Python versions
-from ubjson.encoder import dump as ubjpuredump, dumpb as ubjpuredumpb
-from ubjson.decoder import load as ubjpureload, loadb as ubjpureloadb
+from bjdata.encoder import dump as bjdpuredump, dumpb as bjdpuredumpb
+from bjdata.decoder import load as bjdpureload, loadb as bjdpureloadb
 
 PY2 = version_info[0] < 3
 
@@ -47,12 +48,12 @@ else:  # pragma: no cover
 class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-methods
 
     @staticmethod
-    def ubjloadb(raw, *args, **kwargs):
-        return ubjpureloadb(raw, *args, **kwargs)
+    def bjdloadb(raw, *args, **kwargs):
+        return bjdpureloadb(raw, *args, **kwargs)
 
     @staticmethod
-    def ubjdumpb(obj, *args, **kwargs):
-        return ubjpuredumpb(obj, *args, **kwargs)
+    def bjddumpb(obj, *args, **kwargs):
+        return bjdpuredumpb(obj, *args, **kwargs)
 
     @staticmethod
     def __format_in_out(obj, encoded):
@@ -86,101 +87,101 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
                       # additional arguments to pass to encoder
                       **kwargs):
         """Black-box test to check whether the provided object is the same once encoded and subsequently decoded."""
-        encoded = self.ubjdumpb(obj, **kwargs)
+        encoded = self.bjddumpb(obj, **kwargs)
         if expected_type is not None:
             self.type_check(encoded[0], expected_type)
         if length is not None:
             assert_func = self.assertGreaterEqual if length_greater_or_equal else self.assertEqual
             assert_func(len(encoded), length, self.__format_in_out(obj, encoded))
         if approximate:
-            self.assertTrue(self.numbers_close(self.ubjloadb(encoded, object_hook=object_hook,
+            self.assertTrue(self.numbers_close(self.bjdloadb(encoded, object_hook=object_hook,
                                                              object_pairs_hook=object_pairs_hook), obj),
                             msg=self.__format_in_out(obj, encoded))
         else:
-            self.assertEqual(self.ubjloadb(encoded, object_hook=object_hook,
+            self.assertEqual(self.bjdloadb(encoded, object_hook=object_hook,
                                            object_pairs_hook=object_pairs_hook), obj,
                              self.__format_in_out(obj, encoded))
 
     def test_no_data(self):
         with self.assertRaises(DecoderException):
-            self.ubjloadb(b'')
+            self.bjdloadb(b'')
 
     def test_invalid_data(self):
         for invalid in (u('unicode'), 123):
             with self.assertRaises(TypeError):
-                self.ubjloadb(invalid)
+                self.bjdloadb(invalid)
 
     def test_trailing_input(self):
-        self.assertEqual(self.ubjloadb(TYPE_BOOL_TRUE * 10), True)
+        self.assertEqual(self.bjdloadb(TYPE_BOOL_TRUE * 10), True)
 
     def test_invalid_marker(self):
         with self.assertRaises(DecoderException) as ctx:
-            self.ubjloadb(b'A')
+            self.bjdloadb(b'A')
         self.assertTrue(isinstance(ctx.exception.position, INTEGER_TYPES + (type(None),)))
 
     def test_bool(self):
-        self.assertEqual(self.ubjdumpb(True), TYPE_BOOL_TRUE)
-        self.assertEqual(self.ubjdumpb(False), TYPE_BOOL_FALSE)
+        self.assertEqual(self.bjddumpb(True), TYPE_BOOL_TRUE)
+        self.assertEqual(self.bjddumpb(False), TYPE_BOOL_FALSE)
         self.check_enc_dec(True, 1)
         self.check_enc_dec(False, 1)
 
     def test_null(self):
-        self.assertEqual(self.ubjdumpb(None), TYPE_NULL)
+        self.assertEqual(self.bjddumpb(None), TYPE_NULL)
         self.check_enc_dec(None, 1)
 
     def test_char(self):
-        self.assertEqual(self.ubjdumpb(u('a')), TYPE_CHAR + 'a'.encode('utf-8'))
+        self.assertEqual(self.bjddumpb(u('a')), TYPE_CHAR + 'a'.encode('utf-8'))
         # no char, char invalid utf-8
         for suffix in (b'', b'\xfe'):
             with self.assertRaises(DecoderException):
-                self.ubjloadb(TYPE_CHAR + suffix)
+                self.bjdloadb(TYPE_CHAR + suffix)
         for char in (u('a'), u('\0'), u('~')):
             self.check_enc_dec(char, 2)
 
     def test_string(self):
-        self.assertEqual(self.ubjdumpb(u('ab')), TYPE_STRING + TYPE_UINT8 + b'\x02' + 'ab'.encode('utf-8'))
+        self.assertEqual(self.bjddumpb(u('ab')), TYPE_STRING + TYPE_UINT8 + b'\x02' + 'ab'.encode('utf-8'))
         self.check_enc_dec(u(''), 3)
         # invalid string size, string too short, string invalid utf-8
         for suffix in (b'\x81', b'\x01', b'\x01' + b'\xfe'):
             with self.assertRaises(DecoderException):
-                self.ubjloadb(TYPE_STRING + TYPE_INT8 + suffix)
+                self.bjdloadb(TYPE_STRING + TYPE_INT8 + suffix)
         # Note: In Python 2 plain str type is encoded as byte array
         for string in ('some ascii', u(r'\u00a9 with extended\u2122'), u('long string') * 100):
             self.check_enc_dec(string, 4, length_greater_or_equal=True)
 
     def test_int(self):
-        self.assertEqual(self.ubjdumpb(Decimal(-1.5)),
+        self.assertEqual(self.bjddumpb(Decimal(-1.5)),
                          TYPE_HIGH_PREC + TYPE_UINT8 + b'\x04' + '-1.5'.encode('utf-8'))
         # insufficient length
         with self.assertRaises(DecoderException):
-            self.ubjloadb(TYPE_INT16 + b'\x01')
+            self.bjdloadb(TYPE_INT16 + b'\x01')
 
         for type_, value, total_size in (
                 (TYPE_UINT8, 0, 2),
                 (TYPE_UINT8, 255, 2),
                 (TYPE_INT8, -128, 2),
                 (TYPE_INT16, -32768, 3),
-                (TYPE_INT16, 456, 3),
-                (TYPE_INT16, 32767, 3),
+                (TYPE_UINT16, 456, 3),
+                (TYPE_UINT16, 32767, 3),
                 (TYPE_INT32, -2147483648, 5),
-                (TYPE_INT32, 1610612735, 5),
-                (TYPE_INT32, 2147483647, 5),
+                (TYPE_UINT32, 1610612735, 5),
+                (TYPE_UINT32, 2147483647, 5),
                 (TYPE_INT64, -9223372036854775808, 9),
-                (TYPE_INT64, 6917529027641081855, 9),
-                (TYPE_INT64, 9223372036854775807, 9),
+                (TYPE_UINT64, 6917529027641081855, 9),
+                (TYPE_UINT64, 9223372036854775807, 9),
+                (TYPE_UINT64, 9223372036854775808, 9),
                 # HIGH_PREC (marker + length marker + length + value)
-                (TYPE_HIGH_PREC, 9223372036854775808, 22),
                 (TYPE_HIGH_PREC, -9223372036854775809, 23),
                 (TYPE_HIGH_PREC, 9999999999999999999999999999999999999, 40)):
             self.check_enc_dec(value, total_size, expected_type=type_)
 
     def test_high_precision(self):
-        self.assertEqual(self.ubjdumpb(Decimal(-1.5)),
+        self.assertEqual(self.bjddumpb(Decimal(-1.5)),
                          TYPE_HIGH_PREC + TYPE_UINT8 + b'\x04' + '-1.5'.encode('utf-8'))
         # insufficient length, invalid utf-8, invalid decimal value
         for suffix in (b'n', b'\xfe\xfe', b'na'):
             with self.assertRaises(DecoderException):
-                self.ubjloadb(TYPE_HIGH_PREC + TYPE_UINT8 + b'\x02' + suffix)
+                self.bjdloadb(TYPE_HIGH_PREC + TYPE_UINT8 + b'\x02' + suffix)
 
         self.check_enc_dec('1.8e315')
         for value in (
@@ -191,14 +192,14 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
             # minimum length because: marker + length marker + length + value
             self.check_enc_dec(Decimal(value), 4, length_greater_or_equal=True)
         # cannot compare equality, so test separately (since these evaluate to "NULL"
-        for value in ('nan', '-inf', 'inf'):
-            self.assertEqual(self.ubjloadb(self.ubjdumpb(Decimal(value))), None)
+        #for value in ('nan', '-inf', 'inf'):
+        #    self.assertEqual(self.bjdloadb(self.bjddumpb(Decimal(value))), None)
 
     def test_float(self):
         # insufficient length
         for float_type in (TYPE_FLOAT32, TYPE_FLOAT64):
             with self.assertRaises(DecoderException):
-                self.ubjloadb(float_type + b'\x01')
+                self.bjdloadb(float_type + b'\x01')
 
         self.check_enc_dec(0.0, 5, expected_type=TYPE_FLOAT32)
 
@@ -218,9 +219,9 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
                                9 if type_ == TYPE_FLOAT32 else total_size,
                                approximate=True,
                                expected_type=(TYPE_FLOAT64 if type_ == TYPE_FLOAT32 else type_))
-        for value in ('nan', '-inf', 'inf'):
-            for no_float32 in (True, False):
-                self.assertEqual(self.ubjloadb(self.ubjdumpb(float(value), no_float32=no_float32)), None)
+        #for value in ('nan', '-inf', 'inf'):
+        #    for no_float32 in (True, False):
+        #        self.assertEqual(self.bjdloadb(self.bjddumpb(float(value), no_float32=no_float32)), None)
         # value which results in high_prec usage
         for no_float32 in (True, False):
             self.check_enc_dec(2.22e-308, 4, expected_type=TYPE_HIGH_PREC, length_greater_or_equal=True,
@@ -229,13 +230,13 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
     def test_array(self):
         # invalid length
         with self.assertRaises(DecoderException):
-            self.ubjloadb(ARRAY_START + CONTAINER_COUNT + self.ubjdumpb(-5))
+            self.bjdloadb(ARRAY_START + CONTAINER_COUNT + self.bjddumpb(-5))
         # unencodable type within
         with self.assertRaises(EncoderException):
-            self.ubjdumpb([type(None)])
+            self.bjddumpb([type(None)])
         for sequence in list, tuple:
-            self.assertEqual(self.ubjdumpb(sequence()), ARRAY_START + ARRAY_END)
-        self.assertEqual(self.ubjdumpb((None,), container_count=True), (ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 +
+            self.assertEqual(self.bjddumpb(sequence()), ARRAY_START + ARRAY_END)
+        self.assertEqual(self.bjddumpb((None,), container_count=True), (ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 +
                                                                         b'\x01' + TYPE_NULL))
         obj = [123,
                1.25,
@@ -255,76 +256,76 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
     def test_bytes(self):
         # insufficient length
         with self.assertRaises(DecoderException):
-            self.ubjloadb(ARRAY_START + CONTAINER_TYPE + TYPE_UINT8 + CONTAINER_COUNT + TYPE_UINT8 + b'\x02' + b'\x01')
+            self.bjdloadb(ARRAY_START + CONTAINER_TYPE + TYPE_UINT8 + CONTAINER_COUNT + TYPE_UINT8 + b'\x02' + b'\x01')
         for cast in (bytes, bytearray):
             self.check_enc_dec(cast(b''))
             self.check_enc_dec(cast(b'\x01' * 4))
-            self.assertEqual(self.ubjloadb(self.ubjdumpb(cast(b'\x04' * 4)), no_bytes=True), [4] * 4)
+            self.assertEqual(self.bjdloadb(self.bjddumpb(cast(b'\x04' * 4)), no_bytes=True), [4] * 4)
             self.check_enc_dec(cast(b'largebinary' * 100))
 
     def test_array_fixed(self):
         raw_start = ARRAY_START + CONTAINER_TYPE + TYPE_INT8 + CONTAINER_COUNT + TYPE_UINT8
-        self.assertEqual(self.ubjloadb(raw_start + b'\x00'), [])
+        self.assertEqual(self.bjdloadb(raw_start + b'\x00'), [])
 
         # fixed types + count
-        for ubj_type, py_obj in ((TYPE_NULL, None), (TYPE_BOOL_TRUE, True), (TYPE_BOOL_FALSE, False)):
+        for bjd_type, py_obj in ((TYPE_NULL, None), (TYPE_BOOL_TRUE, True), (TYPE_BOOL_FALSE, False)):
             self.assertEqual(
-                self.ubjloadb(ARRAY_START + CONTAINER_TYPE + ubj_type + CONTAINER_COUNT + TYPE_UINT8 + b'\x05'),
+                self.bjdloadb(ARRAY_START + CONTAINER_TYPE + bjd_type + CONTAINER_COUNT + TYPE_UINT8 + b'\x05'),
                 [py_obj] * 5
             )
-        self.assertEqual(self.ubjloadb(raw_start + b'\x03' + (b'\x01' * 3)), [1, 1, 1])
+        self.assertEqual(self.bjdloadb(raw_start + b'\x03' + (b'\x01' * 3)), [1, 1, 1])
 
         # invalid type
         with self.assertRaises(DecoderException):
-            self.ubjloadb(ARRAY_START + CONTAINER_TYPE + b'\x01')
+            self.bjdloadb(ARRAY_START + CONTAINER_TYPE + b'\x01')
 
         # type without count
         with self.assertRaises(DecoderException):
-            self.ubjloadb(ARRAY_START + CONTAINER_TYPE + TYPE_INT8 + b'\x01')
+            self.bjdloadb(ARRAY_START + CONTAINER_TYPE + TYPE_INT8 + b'\x01')
 
         # count without type
-        self.assertEqual(self.ubjloadb(ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 + b'\x02' + TYPE_BOOL_FALSE +
+        self.assertEqual(self.bjdloadb(ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 + b'\x02' + TYPE_BOOL_FALSE +
                                        TYPE_BOOL_TRUE),
                          [False, True])
 
         # nested
-        self.assertEqual(self.ubjloadb(ARRAY_START + CONTAINER_TYPE + ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 +
+        self.assertEqual(self.bjdloadb(ARRAY_START + CONTAINER_TYPE + ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 +
                                        b'\x03' + ARRAY_END + CONTAINER_COUNT + TYPE_UINT8 + b'\x01' + TYPE_BOOL_TRUE +
                                        TYPE_BOOL_FALSE + TYPE_BOOL_TRUE + ARRAY_END),
                          [[], [True], [False, True]])
 
     def test_array_noop(self):
         # only supported without type
-        self.assertEqual(self.ubjloadb(ARRAY_START +
+        self.assertEqual(self.bjdloadb(ARRAY_START +
                                        TYPE_NOOP +
                                        TYPE_UINT8 + b'\x01' +
                                        TYPE_NOOP +
                                        TYPE_UINT8 + b'\x02' +
                                        TYPE_NOOP +
                                        ARRAY_END), [1, 2])
-        self.assertEqual(self.ubjloadb(ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 + b'\x01' +
+        self.assertEqual(self.bjdloadb(ARRAY_START + CONTAINER_COUNT + TYPE_UINT8 + b'\x01' +
                                        TYPE_NOOP +
                                        TYPE_UINT8 + b'\x01'), [1])
 
     def test_object_invalid(self):
         # negative length
         with self.assertRaises(DecoderException):
-            self.ubjloadb(OBJECT_START + CONTAINER_COUNT + self.ubjdumpb(-1))
+            self.bjdloadb(OBJECT_START + CONTAINER_COUNT + self.bjddumpb(-1))
 
         with self.assertRaises(EncoderException):
-            self.ubjdumpb({123: 'non-string key'})
+            self.bjddumpb({123: 'non-string key'})
 
         with self.assertRaises(EncoderException):
-            self.ubjdumpb({'fish': type(list)})
+            self.bjddumpb({'fish': type(list)})
 
         # invalid key size type
         with self.assertRaises(DecoderException):
-            self.ubjloadb(OBJECT_START + TYPE_NULL)
+            self.bjdloadb(OBJECT_START + TYPE_NULL)
 
         # invalid key size, key too short, key invalid utf-8, no value
         for suffix in (b'\x81', b'\x01', b'\x01' + b'\xfe', b'\x0101'):
             with self.assertRaises(DecoderException):
-                self.ubjloadb(OBJECT_START + TYPE_INT8 + suffix)
+                self.bjdloadb(OBJECT_START + TYPE_INT8 + suffix)
 
         # invalid items() method
         class BadDict(dict):
@@ -332,20 +333,20 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
                 return super(BadDict, self).keys()
 
         with self.assertRaises(ValueError):
-            self.ubjdumpb(BadDict({'a': 1, 'b': 2}))
+            self.bjddumpb(BadDict({'a': 1, 'b': 2}))
 
     def test_object(self):
         # custom hook
         with self.assertRaises(TypeError):
-            self.ubjloadb(self.ubjdumpb({}), object_pairs_hook=int)
+            self.bjdloadb(self.bjddumpb({}), object_pairs_hook=int)
         # same as not specifying a custom class
-        self.ubjloadb(self.ubjdumpb({}), object_pairs_hook=None)
+        self.bjdloadb(self.bjddumpb({}), object_pairs_hook=None)
 
         for hook in (None, OrderedDict):
             check_enc_dec = partial(self.check_enc_dec, object_pairs_hook=hook)
 
-            self.assertEqual(self.ubjdumpb({}), OBJECT_START + OBJECT_END)
-            self.assertEqual(self.ubjdumpb({'a': None}, container_count=True),
+            self.assertEqual(self.bjddumpb({}), OBJECT_START + OBJECT_END)
+            self.assertEqual(self.bjddumpb({'a': None}, container_count=True),
                              (OBJECT_START + CONTAINER_COUNT + TYPE_UINT8 + b'\x01' + TYPE_UINT8 + b'\x01' +
                               'a'.encode('utf-8') + TYPE_NULL))
             check_enc_dec({})
@@ -373,16 +374,16 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
         # dictionary key sorting
         obj1 = OrderedDict.fromkeys('abcdefghijkl')
         obj2 = OrderedDict.fromkeys('abcdefghijkl'[::-1])
-        self.assertNotEqual(self.ubjdumpb(obj1), self.ubjdumpb(obj2))
-        self.assertEqual(self.ubjdumpb(obj1, sort_keys=True), self.ubjdumpb(obj2, sort_keys=True))
+        self.assertNotEqual(self.bjddumpb(obj1), self.bjddumpb(obj2))
+        self.assertEqual(self.bjddumpb(obj1, sort_keys=True), self.bjddumpb(obj2, sort_keys=True))
 
-        self.assertEqual(self.ubjloadb(self.ubjdumpb(obj1), object_pairs_hook=OrderedDict), obj1)
+        self.assertEqual(self.bjdloadb(self.bjddumpb(obj1), object_pairs_hook=OrderedDict), obj1)
 
     def test_object_fixed(self):
         raw_start = OBJECT_START + CONTAINER_TYPE + TYPE_INT8 + CONTAINER_COUNT + TYPE_UINT8
 
         for hook in (None, OrderedDict):
-            loadb = partial(self.ubjloadb, object_pairs_hook=hook)
+            loadb = partial(self.bjdloadb, object_pairs_hook=hook)
 
             self.assertEqual(loadb(raw_start + b'\x00'), {})
             self.assertEqual(loadb(raw_start + b'\x03' + (TYPE_UINT8 + b'\x02' + b'aa' + b'\x01' +
@@ -408,7 +409,7 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
     def test_object_noop(self):
         # only supported without type
         for hook in (None, OrderedDict):
-            loadb = partial(self.ubjloadb, object_pairs_hook=hook)
+            loadb = partial(self.bjdloadb, object_pairs_hook=hook)
             self.assertEqual(loadb(OBJECT_START +
                                    TYPE_NOOP +
                                    TYPE_UINT8 + b'\x01' + 'a'.encode('utf-8') + TYPE_NULL +
@@ -420,9 +421,9 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
                                    TYPE_UINT8 + b'\x01' + 'a'.encode('utf-8') + TYPE_NULL), {'a': None})
 
     def test_intern_object_keys(self):
-        encoded = self.ubjdumpb({'asdasd': 1, 'qwdwqd': 2})
-        mapping2 = self.ubjloadb(encoded, intern_object_keys=True)
-        mapping3 = self.ubjloadb(encoded, intern_object_keys=True)
+        encoded = self.bjddumpb({'asdasd': 1, 'qwdwqd': 2})
+        mapping2 = self.bjdloadb(encoded, intern_object_keys=True)
+        mapping3 = self.bjdloadb(encoded, intern_object_keys=True)
         for key1, key2 in zip(sorted(mapping2.keys()), sorted(mapping3.keys())):
             if PY2:  # pragma: no cover
                 # interning of unicode not supported
@@ -438,7 +439,7 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
 
         for container in (sequence, mapping):
             with self.assertRaises(ValueError):
-                self.ubjdumpb(container)
+                self.bjddumpb(container)
 
         # Refering to the same container multiple times is valid however
         sequence = [1, 2, 3]
@@ -447,13 +448,13 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
 
     def test_unencodable(self):
         with self.assertRaises(EncoderException):
-            self.ubjdumpb(type(None))
+            self.bjddumpb(type(None))
 
     def test_decoder_fuzz(self):
         for start, end, fmt in ((0, pow(2, 8), '>B'), (pow(2, 8), pow(2, 16), '>H'), (pow(2, 16), pow(2, 18), '>I')):
             for i in range(start, end):
                 try:
-                    self.ubjloadb(pack(fmt, i))
+                    self.bjdloadb(pack(fmt, i))
                 except DecoderException:
                     pass
                 except Exception as ex:  # pragma: no cover  pylint: disable=broad-except
@@ -464,18 +465,23 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
         return (self.assertRaisesRegexp if PY2 else self.assertRaisesRegex)(*args, **kwargs)
 
     def test_recursion(self):
-        obj = current = []
-        for _ in range(getrecursionlimit()):
-            new_list = []
-            current.append(new_list)
-            current = new_list
+        old_limit = getrecursionlimit()
+        setrecursionlimit(200)
+        try:
+            obj = current = []
+            for _ in range(getrecursionlimit() * 2):
+                new_list = []
+                current.append(new_list)
+                current = new_list
 
-        with self.assert_raises_regex(RuntimeError, 'recursion'):
-            self.ubjdumpb(obj)
+            with self.assert_raises_regex(RuntimeError, 'recursion'):
+                self.bjddumpb(obj)
 
-        raw = ARRAY_START * getrecursionlimit()
-        with self.assert_raises_regex(RuntimeError, 'recursion'):
-            self.ubjloadb(raw)
+            raw = ARRAY_START * (getrecursionlimit() * 2)
+            with self.assert_raises_regex(RuntimeError, 'recursion'):
+                self.bjdloadb(raw)
+        finally:
+            setrecursionlimit(old_limit)
 
     def test_encode_default(self):
         def default(obj):
@@ -483,7 +489,7 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
                 return sorted(obj)
             raise EncoderException('__test__marker__')
 
-        dumpb_default = partial(self.ubjdumpb, default=default)
+        dumpb_default = partial(self.bjddumpb, default=default)
         # Top-level custom type
         obj1 = {1, 2, 3}
         obj2 = default(obj1)
@@ -492,16 +498,16 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
         obj4 = OrderedDict(sorted({'a': 1, 'b': obj2, 'c': [2, obj2]}.items()))
 
         with self.assert_raises_regex(EncoderException, 'Cannot encode item'):
-            self.ubjdumpb(obj1)
+            self.bjddumpb(obj1)
         # explicit None should behave the same as no default
         with self.assert_raises_regex(EncoderException, 'Cannot encode item'):
-            self.ubjdumpb(obj1, default=None)
+            self.bjddumpb(obj1, default=None)
 
         with self.assert_raises_regex(EncoderException, '__test__marker__'):
             dumpb_default(self)
 
-        self.assertEqual(dumpb_default(obj1), self.ubjdumpb(obj2))
-        self.assertEqual(dumpb_default(obj3), self.ubjdumpb(obj4))
+        self.assertEqual(dumpb_default(obj1), self.bjddumpb(obj2))
+        self.assertEqual(dumpb_default(obj3), self.bjddumpb(obj4))
 
     def test_decode_object_hook(self):
         with self.assertRaises(TypeError):
@@ -530,43 +536,43 @@ class TestEncodeDecodePlain(TestCase):  # pylint: disable=too-many-public-method
 class TestEncodeDecodePlainExt(TestEncodeDecodePlain):
 
     @staticmethod
-    def ubjloadb(raw, *args, **kwargs):
-        return ubjloadb(raw, *args, **kwargs)
+    def bjdloadb(raw, *args, **kwargs):
+        return bjdloadb(raw, *args, **kwargs)
 
     @staticmethod
-    def ubjdumpb(obj, *args, **kwargs):
-        return ubjdumpb(obj, *args, **kwargs)
+    def bjddumpb(obj, *args, **kwargs):
+        return bjddumpb(obj, *args, **kwargs)
 
 
 class TestEncodeDecodeFp(TestEncodeDecodePlain):
     """Performs tests via file-like objects (BytesIO) instead of bytes instances"""
 
     @staticmethod
-    def ubjloadb(raw, *args, **kwargs):
-        return ubjpureload(BytesIO(raw), *args, **kwargs)
+    def bjdloadb(raw, *args, **kwargs):
+        return bjdpureload(BytesIO(raw), *args, **kwargs)
 
     @staticmethod
-    def ubjdumpb(obj, *args, **kwargs):
+    def bjddumpb(obj, *args, **kwargs):
         out = BytesIO()
-        ubjpuredump(obj, out, *args, **kwargs)
+        bjdpuredump(obj, out, *args, **kwargs)
         return out.getvalue()
 
     @staticmethod
-    def ubjload(fp, *args, **kwargs):
-        return ubjpureload(fp, *args, **kwargs)
+    def bjdload(fp, *args, **kwargs):
+        return bjdpureload(fp, *args, **kwargs)
 
     @staticmethod
-    def ubjdump(obj, fp, *args, **kwargs):
-        return ubjpuredump(obj, fp, *args, **kwargs)
+    def bjddump(obj, fp, *args, **kwargs):
+        return bjdpuredump(obj, fp, *args, **kwargs)
 
     def test_decode_exception_position(self):
         with self.assertRaises(DecoderException) as ctx:
-            self.ubjloadb(TYPE_STRING + TYPE_INT8 + b'\x01' + b'\xfe' + b'c0fefe' * 4)
+            self.bjdloadb(TYPE_STRING + TYPE_INT8 + b'\x01' + b'\xfe' + b'c0fefe' * 4)
         self.assertEqual(ctx.exception.position, 4)
 
     def test_invalid_fp_dump(self):
         with self.assertRaises(AttributeError):
-            self.ubjdump(None, 1)
+            self.bjddump(None, 1)
 
         class Dummy(object):
             write = 1
@@ -577,14 +583,14 @@ class TestEncodeDecodeFp(TestEncodeDecodePlain):
                 raise ValueError('invalid - %s' % repr(raw))
 
         with self.assertRaises(TypeError):
-            self.ubjdump(b'', Dummy)
+            self.bjddump(b'', Dummy)
 
         with self.assertRaises(ValueError):
-            self.ubjdump(b'', Dummy2)
+            self.bjddump(b'', Dummy2)
 
     def test_invalid_fp_load(self):
         with self.assertRaises(AttributeError):
-            self.ubjload(1)
+            self.bjdload(1)
 
         class Dummy(object):
             read = 1
@@ -596,39 +602,39 @@ class TestEncodeDecodeFp(TestEncodeDecodePlain):
                 raise ValueError('invalid - %d' % length)
 
         with self.assertRaises(TypeError):
-            self.ubjload(Dummy)
+            self.bjdload(Dummy)
 
         with self.assertRaises(ValueError):
-            self.ubjload(Dummy2)
+            self.bjdload(Dummy2)
 
     def test_fp(self):
         obj = {'a': 123, 'b': 456}
         output = BytesIO()
-        self.ubjdump(obj, output)
+        self.bjddump(obj, output)
         output.seek(0)
-        self.assertEqual(self.ubjload(output), obj)
+        self.assertEqual(self.bjdload(output), obj)
 
 
 @skipUnless(EXTENSION_ENABLED, 'Extension not enabled')
 class TestEncodeDecodeFpExt(TestEncodeDecodeFp):
 
     @staticmethod
-    def ubjloadb(raw, *args, **kwargs):
-        return ubjload(BytesIO(raw), *args, **kwargs)
+    def bjdloadb(raw, *args, **kwargs):
+        return bjdload(BytesIO(raw), *args, **kwargs)
 
     @staticmethod
-    def ubjdumpb(obj, *args, **kwargs):
+    def bjddumpb(obj, *args, **kwargs):
         out = BytesIO()
-        ubjdump(obj, out, *args, **kwargs)
+        bjddump(obj, out, *args, **kwargs)
         return out.getvalue()
 
     @staticmethod
-    def ubjload(fp, *args, **kwargs):
-        return ubjload(fp, *args, **kwargs)
+    def bjdload(fp, *args, **kwargs):
+        return bjdload(fp, *args, **kwargs)
 
     @staticmethod
-    def ubjdump(obj, fp, *args, **kwargs):
-        return ubjdump(obj, fp, *args, **kwargs)
+    def bjddump(obj, fp, *args, **kwargs):
+        return bjddump(obj, fp, *args, **kwargs)
 
     # Seekable file-like object buffering
     def test_fp_buffer(self):
@@ -637,16 +643,16 @@ class TestEncodeDecodeFpExt(TestEncodeDecodeFp):
         # items which fit into extension decoder-internal read buffer (BUFFER_FP_SIZE in decoder.c, extension only)
         obj2 = ['fishy' * 64] * 10
         output.seek(0)
-        self.ubjdump(obj2, output)
+        self.bjddump(obj2, output)
         output.seek(0)
-        self.assertEqual(self.ubjload(output), obj2)
+        self.assertEqual(self.bjdload(output), obj2)
 
         # larger than extension read buffer (extension only)
         obj3 = ['fishy' * 512] * 10
         output.seek(0)
-        self.ubjdump(obj3, output)
+        self.bjddump(obj3, output)
         output.seek(0)
-        self.assertEqual(self.ubjload(output), obj3)
+        self.assertEqual(self.bjdload(output), obj3)
 
     # Multiple documents in same stream (issue #9)
     def test_fp_multi(self):
@@ -660,12 +666,12 @@ class TestEncodeDecodeFpExt(TestEncodeDecodeFp):
 
             for i in range(count):
                 obj['c'] = i
-                self.ubjdump(obj, output)
+                self.bjddump(obj, output)
 
             output.seek(0)
             for i in range(count):
                 obj['c'] = i
-                self.assertEqual(self.ubjload(output), obj)
+                self.assertEqual(self.bjdload(output), obj)
 
             output.seekable = lambda: False
 
@@ -673,16 +679,16 @@ class TestEncodeDecodeFpExt(TestEncodeDecodeFp):
     def test_fp_callable_incomplete(self):
         obj = [123, b'something']
         # remove whole of last token (binary data 'something', without its length)
-        output = BytesIO(self.ubjdumpb(obj)[:-(len(obj[1]) + 1)])
+        output = BytesIO(self.bjddumpb(obj)[:-(len(obj[1]) + 1)])
         output.seekable = lambda: False
 
         with self.assert_raises_regex(DecoderException, 'Insufficient input'):
-            self.ubjload(output)
+            self.bjdload(output)
 
     def test_fp_seek_invalid(self):
         output = BytesIO()
-        self.ubjdump({'a': 333, 'b': 444}, output)
-        # pad with data (non-ubjson) to ensure buffering too much data
+        self.bjddump({'a': 333, 'b': 444}, output)
+        # pad with data (non-bjdata) to ensure buffering too much data
         output.write(b' ' * 16)
         output.seek(0)
 
@@ -694,23 +700,23 @@ class TestEncodeDecodeFpExt(TestEncodeDecodeFp):
 
         output.seek = bad_seek
         with self.assert_raises_regex(OSError, 'bad seek'):
-            self.ubjload(output)
+            self.bjdload(output)
 
         # decoding (lack of input) and seek fail - should get decoding failure
         output.seek_org(0, SEEK_END)
         with self.assert_raises_regex(DecoderException, 'Insufficient input'):
-            self.ubjload(output)
+            self.bjdload(output)
 
         # seek is not callable
         output.seek_org(0)
         output.seek = True
         with self.assert_raises_regex(TypeError, 'not callable'):
-            self.ubjload(output)
+            self.bjdload(output)
 
         # decoding (lack of input) and seek not callable - should get decoding failure
         output.seek_org(0, SEEK_END)
         with self.assert_raises_regex(DecoderException, 'Insufficient input'):
-            self.ubjload(output)
+            self.bjdload(output)
 
 
 # def pympler_run(iterations=20):

@@ -1,10 +1,11 @@
+# Copyright (c) 2020 Qianqian Fang <q.fang at neu.edu>. All rights reserved.
 # Copyright (c) 2019 Iotic Labs Ltd. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://github.com/Iotic-Labs/py-ubjson/blob/master/LICENSE
+#     https://github.com/fangq/pybj/blob/master/LICENSE
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,21 +14,21 @@
 # limitations under the License.
 
 
-"""UBJSON (draft 12) implementation without No-Op support
+"""BJData (draft 1) and UBJSON (Draft 12) implementation without No-Op support
 
 Example usage:
 
 # To encode
-encoded = ubjson.dumpb({'a': 1})
+encoded = bjdata.dumpb({'a': 1})
 
 # To decode
-decoded = ubjson.loadb(encoded)
+decoded = bjdata.loadb(encoded)
 
 To use a file-like object as input/output, use dump() & load() methods instead.
 """
 
 try:
-    from _ubjson import dump, dumpb, load, loadb
+    from _bjdata import dump, dumpb, load, loadb
     EXTENSION_ENABLED = True
 except ImportError:  # pragma: no cover
     from .encoder import dump, dumpb
@@ -37,6 +38,6 @@ except ImportError:  # pragma: no cover
 from .encoder import EncoderException
 from .decoder import DecoderException
 
-__version__ = '0.14.0'
+__version__ = '0.2.0'
 
 __all__ = ('EXTENSION_ENABLED', 'dump', 'dumpb', 'EncoderException', 'load', 'loadb', 'DecoderException')

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2020 Qianqian Fang <q.fang at neu.edu>. All rights reserved.
  * Copyright (c) 2001-2016 Python Software Foundation; All Rights Reserved
  *
  * Licensed under PSF license, see: https://docs.python.org/3/license.html

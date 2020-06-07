@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://github.com/Iotic-Labs/py-ubjson/blob/master/LICENSE
+#     https://github.com/Iotic-Labs/py-bjdata/blob/master/LICENSE
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@
 from __future__ import print_function, unicode_literals
 
 from abc import ABCMeta, abstractmethod
-from sys import argv
+from sys import argv, exit  # pylint: disable=redefined-builtin
 from traceback import print_exc
 from types import GeneratorType
 from contextlib import contextmanager
@@ -67,48 +67,48 @@ class Json(LibWrapper):
 
 TEST_LIBS = [Json]
 
-# py-ubjson
+# py-bjdata
 
 try:
-    from ubjson import __version__ as ubj_version, dumpb as ubj_enc, loadb as ubj_dec
+    from bjdata import __version__ as bjd_version, dumpb as bjd_enc, loadb as bjd_dec
 except ImportError:
-    print('Failed to import ubjson, ignoring')
+    print('Failed to import bjdata, ignoring')
 else:
     class PyUbjson(LibWrapper):
 
         @staticmethod
         def name():
-            return 'py-ubjson %s' % ubj_version
+            return 'py-bjdata %s' % bjd_version
 
         @staticmethod
         def encode(obj):
-            return ubj_enc(obj)
+            return bjd_enc(obj)
 
         @staticmethod
         def decode(obj):
-            return ubj_dec(obj)
+            return bjd_dec(obj)
     TEST_LIBS.append(PyUbjson)
 
-# simpleubjson
+# simplebjdata
 
 try:
-    from simpleubjson import __version__ as subj_version, encode as subj_enc, decode as subj_dec
+    from simplebjdata import __version__ as sbjd_version, encode as sbjd_enc, decode as sbjd_dec
 except ImportError:
-    print('Failed to import simpleubjson, ignoring')
+    print('Failed to import simplebjdata, ignoring')
 else:
     class SimpleUbjson(LibWrapper):
 
         @staticmethod
         def name():
-            return 'simpleubjson %s' % subj_version
+            return 'simplebjdata %s' % sbjd_version
 
         @staticmethod
         def encode(obj):
-            return subj_enc(obj)
+            return sbjd_enc(obj)
 
         @staticmethod
         def decode(obj):
-            val = subj_dec(obj)
+            val = sbjd_dec(obj)
             # ugly: decoder only returns iterator if object or array (and only know by name of generator which it is)
             if isinstance(val, GeneratorType):
                 if val.__name__ == 'array_stream':
@@ -141,7 +141,7 @@ def test_all_with(name, repeats=1000):
 
     with open(name, 'r') as in_file:
         obj = j_load(in_file)
-        print('%s (%d)' % (name, in_file.tell()))
+        row_start = '"%s",%d' % (name, in_file.tell())
 
     gc.disable()
     for lib in TEST_LIBS:
@@ -160,7 +160,7 @@ def test_all_with(name, repeats=1000):
         dec_time = time() - start
         gc.collect()
 
-        print('%20s (enc/dec): %.3f / %.3f' % (lib.name(), enc_time, dec_time))
+        print('%s,"%s",%.3f,%.3f' % (row_start, lib.name(), enc_time, dec_time))
     gc.enable()
 
 
@@ -175,7 +175,6 @@ def main():
         print('USAGE: perf.py REPEATS INPUT1 [INPUT2] ..')
         return 1
 
-    print('Testing with %d repeats' % repeats)
     for name in argv[2:]:
         try:
             test_all_with(name, repeats=repeats)

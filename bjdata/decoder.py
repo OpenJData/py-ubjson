@@ -1,10 +1,11 @@
+# Copyright (c) 2020 Qianqian Fang <q.fang at neu.edu>. All rights reserved.
 # Copyright (c) 2019 Iotic Labs Ltd. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://github.com/Iotic-Labs/py-ubjson/blob/master/LICENSE
+#     https://github.com/fangq/pybj/blob/master/LICENSE
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +14,7 @@
 # limitations under the License.
 
 
-"""UBJSON draft v12 decoder"""
+"""BJData (Draft 1) and UBJSON (Draft 12) and decoder"""
 
 from io import BytesIO
 from struct import Struct, pack, error as StructError
@@ -22,19 +23,24 @@ from decimal import Decimal, DecimalException
 from .compat import raise_from, intern_unicode
 from .markers import (TYPE_NONE, TYPE_NULL, TYPE_NOOP, TYPE_BOOL_TRUE, TYPE_BOOL_FALSE, TYPE_INT8, TYPE_UINT8,
                       TYPE_INT16, TYPE_INT32, TYPE_INT64, TYPE_FLOAT32, TYPE_FLOAT64, TYPE_HIGH_PREC, TYPE_CHAR,
+		      TYPE_UINT16, TYPE_UINT32, TYPE_UINT64, TYPE_FLOAT16,
                       TYPE_STRING, OBJECT_START, OBJECT_END, ARRAY_START, ARRAY_END, CONTAINER_TYPE, CONTAINER_COUNT)
 
 __TYPES = frozenset((TYPE_NULL, TYPE_BOOL_TRUE, TYPE_BOOL_FALSE, TYPE_INT8, TYPE_UINT8, TYPE_INT16, TYPE_INT32,
-                     TYPE_INT64, TYPE_FLOAT32, TYPE_FLOAT64, TYPE_HIGH_PREC, TYPE_CHAR, TYPE_STRING, ARRAY_START,
-                     OBJECT_START))
+                     TYPE_INT64, TYPE_FLOAT32, TYPE_FLOAT64, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64, TYPE_FLOAT16, 
+		     TYPE_HIGH_PREC, TYPE_CHAR, TYPE_STRING, ARRAY_START, OBJECT_START))
 __TYPES_NO_DATA = frozenset((TYPE_NULL, TYPE_BOOL_FALSE, TYPE_BOOL_TRUE))
-__TYPES_INT = frozenset((TYPE_INT8, TYPE_UINT8, TYPE_INT16, TYPE_INT32, TYPE_INT64))
+__TYPES_INT = frozenset((TYPE_INT8, TYPE_UINT8, TYPE_INT16, TYPE_INT32, TYPE_INT64, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64))
 
 __SMALL_INTS_DECODED = {pack('>b', i): i for i in range(-128, 128)}
 __SMALL_UINTS_DECODED = {pack('>B', i): i for i in range(256)}
 __UNPACK_INT16 = Struct('>h').unpack
 __UNPACK_INT32 = Struct('>i').unpack
 __UNPACK_INT64 = Struct('>q').unpack
+__UNPACK_UINT16 = Struct('>H').unpack
+__UNPACK_UINT32 = Struct('>I').unpack
+__UNPACK_UINT64 = Struct('>Q').unpack
+__UNPACK_FLOAT16 = Struct('>q').unpack
 __UNPACK_FLOAT32 = Struct('>f').unpack
 __UNPACK_FLOAT64 = Struct('>d').unpack
 
@@ -113,6 +119,26 @@ def __decode_int64(fp_read, marker):
     except StructError as ex:
         raise_from(DecoderException('Failed to unpack int64'), ex)
 
+def __decode_uint16(fp_read, marker):
+    try:
+        return __UNPACK_UINT16(fp_read(2))[0]
+    except StructError as ex:
+        raise_from(DecoderException('Failed to unpack uint16'), ex)
+
+
+def __decode_uint32(fp_read, marker):
+    try:
+        return __UNPACK_UINT32(fp_read(4))[0]
+    except StructError as ex:
+        raise_from(DecoderException('Failed to unpack uint32'), ex)
+
+
+def __decode_uint64(fp_read, marker):
+    try:
+        return __UNPACK_UINT64(fp_read(8))[0]
+    except StructError as ex:
+        raise_from(DecoderException('Failed to unpack uint64'), ex)
+
 
 def __decode_float32(fp_read, marker):
     try:
@@ -168,17 +194,26 @@ __METHOD_MAP = {TYPE_NULL: (lambda _, __: None),
                 TYPE_INT8: __decode_int8,
                 TYPE_UINT8: __decode_uint8,
                 TYPE_INT16: __decode_int16,
+		TYPE_UINT16: __decode_uint16,
                 TYPE_INT32: __decode_int32,
+		TYPE_UINT32: __decode_uint32,
                 TYPE_INT64: __decode_int64,
+		TYPE_UINT64: __decode_uint64,
                 TYPE_FLOAT32: __decode_float32,
                 TYPE_FLOAT64: __decode_float64,
                 TYPE_HIGH_PREC: __decode_high_prec,
                 TYPE_CHAR: __decode_char,
                 TYPE_STRING: __decode_string}
 
+def prodlist(mylist):
+    result = 1
+    for x in mylist: 
+         result = result * x  
+    return result
 
-def __get_container_params(fp_read, in_mapping, no_bytes):
+def __get_container_params(fp_read, in_mapping, no_bytes, object_hook, object_pairs_hook, intern_object_keys):
     marker = fp_read(1)
+    dims = []
     if marker == CONTAINER_TYPE:
         marker = fp_read(1)
         if marker not in __TYPES:
@@ -188,7 +223,12 @@ def __get_container_params(fp_read, in_mapping, no_bytes):
     else:
         type_ = TYPE_NONE
     if marker == CONTAINER_COUNT:
-        count = __decode_int_non_negative(fp_read, fp_read(1))
+        marker = fp_read(1)
+        if marker == ARRAY_START:
+            dims = __decode_array(fp_read, no_bytes, object_hook, object_pairs_hook, intern_object_keys)
+            count = prodlist(dims)
+        else:
+            count = __decode_int_non_negative(fp_read, marker)
         counting = True
 
         # special cases (no data (None or bool) / bytes array) will be handled in calling functions
@@ -203,12 +243,12 @@ def __get_container_params(fp_read, in_mapping, no_bytes):
         counting = False
     else:
         raise DecoderException('Container type without count')
-    return marker, counting, count, type_
+    return marker, counting, count, type_, dims
 
 
 def __decode_object(fp_read, no_bytes, object_hook, object_pairs_hook,  # pylint: disable=too-many-branches
                     intern_object_keys):
-    marker, counting, count, type_ = __get_container_params(fp_read, True, no_bytes)
+    marker, counting, count, type_, dims = __get_container_params(fp_read, True, no_bytes,object_hook, object_pairs_hook,intern_object_keys)
     has_pairs_hook = object_pairs_hook is not None
     obj = [] if has_pairs_hook else {}
 
@@ -263,7 +303,7 @@ def __decode_object(fp_read, no_bytes, object_hook, object_pairs_hook,  # pylint
 
 
 def __decode_array(fp_read, no_bytes, object_hook, object_pairs_hook, intern_object_keys):
-    marker, counting, count, type_ = __get_container_params(fp_read, False, no_bytes)
+    marker, counting, count, type_, dims = __get_container_params(fp_read, False, no_bytes, object_hook, object_pairs_hook, intern_object_keys)
 
     # special case - no data (None or bool)
     if type_ in __TYPES_NO_DATA:

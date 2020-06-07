@@ -1,64 +1,75 @@
-# Overview
+# Binary JData for Python - a lightweight binary JSON format
 
-This is a Python v3.2+ (and 2.7+) [Universal Binary JSON](http://ubjson.org) encoder/decoder based on the [draft-12](UBJSON-Specification.md) specification.
+- Copyright: (C) Qianqian Fang (2020) <q.fang at neu.edu>
+- Copyright: (C) Iotic Labs Ltd. (2019) <vilnis.termanis at iotic-labs.com>
+- License: Apache License, Version 2.0
+- Version: 0.2
+- URL: https://github.com/fangq/pybj
 
 
-# Installing / packaging
+This is a Python v3.2+ (and 2.7+) [Binary JData](http://openjdata.org) based on 
+the [Draft-1](Binary_JData_Specification.md) specification.
+
+## Installing / packaging
 ```shell
-# To get from PyPI
-pip3 install py-ubjson
+## To get from PyPI
+pip3 install bjdata
 
-# To only build extension modules inline (e.g. in repository)
+## To only build extension modules inline (e.g. in repository)
 python3 setup.py build_ext -i
 
-# To build & install globally
+## To build & install globally
 python3 setup.py install
 
-# To skip building of extensions when installing (or building)
-PYUBJSON_NO_EXTENSION=1 python3 setup.py install
+## To skip building of extensions when installing (or building)
+PYBJDATA_NO_EXTENSION=1 python3 setup.py install
 ```
+
 **Notes**
 
 - The extension module is not required but provide a significant speed boost.
 - The above can also be run with v2.7+
-- This module is also available via [Anaconda (conda-forge)](https://anaconda.org/conda-forge/py-ubjson)
-- PyPI releases are signed with the [Iotic Labs Software release signing key](https://developer.iotic-labs.com/iotic-labs.com.asc)
-- At run time, one can check whether compiled version is in use via the _ubjson.EXTENSION_ENABLED_ boolean
+- At run time, one can check whether compiled version is in use via the 
+_bjdata.EXTENSION_ENABLED_ boolean
 
 
-# Usage
-It's meant to behave very much like Python's built-in [JSON module](https://docs.python.org/3/library/json.html), e.g.:
+## Usage
+It's meant to behave very much like Python's built-in 
+[JSON module](https://docs.python.org/3/library/json.html), e.g.:
 ```python
-import ubjson
+import bjdata as bj
 
-encoded = ubjson.dumpb({u'a': 1})
+encoded = bj.dumpb({u'a': 1})
 
-decoded = ubjson.loadb(encoded)
+decoded = bj.loadb(encoded)
 ```
-**Note**: Only unicode strings in Python 2 will be encoded as strings, plain *str* will be encoded as a byte array.
+**Note**: Only unicode strings in Python 2 will be encoded as strings, plain *str* 
+will be encoded as a byte array.
 
 
-# Documentation
+## Documentation
 ```python
-import ubsjon
-help(ubjson.dump)
-help(ubjson.load)
+import bjdata
+help(bjdata.dump)
+help(bjdata.load)
 ```
 
-# Command-line utility
-This converts between JSON and UBJSON formats:
+## Command-line utility
+This converts between JSON and BJData formats:
 ```shell
-python3 -mubjson
-USAGE: ubjson (fromjson|tojson) (INFILE|-) [OUTFILE]
+python3 -mbjdata
+USAGE: bjdata (fromjson|tojson) (INFILE|-) [OUTFILE]
 ```
 
 
-# Tests
+## Tests
 
-## Static
-This library has been checked using [flake8](https://pypi.python.org/pypi/flake8) and [pylint](http://www.pylint.org), using a modified configuration - see _pylint.rc_ and _flake8.cfg_.
+### Static
+This library has been checked using [flake8](https://pypi.python.org/pypi/flake8) 
+and [pylint](http://www.pylint.org), using a modified configuration - 
+see _pylint.rc_ and _flake8.cfg_.
 
-## Unit
+### Unit
 ```shell
 python3 -mvenv py
 . py/bin/activate
@@ -70,17 +81,28 @@ pip install -e .[dev]
 **Note**: See `coverage_test.sh` for additional requirements.
 
 
-# Limitations
-- The **No-Op** type is only supported by the decoder. (This should arguably be a protocol-level rather than serialisation-level option.) Specifically, it is **only** allowed to occur at the start or between elements of a container and **only** inside un-typed containers. (In a typed container it is impossible to tell the difference between an encoded element and a No-Op.)
-- Strongly-typed containers are only supported by the decoder (apart from for **bytes**/**bytearray**) and not for No-Op.
+## Limitations
+- The **No-Op** type is only supported by the decoder. (This should arguably be 
+  a protocol-level rather than serialisation-level option.) Specifically, it is 
+  **only** allowed to occur at the start or between elements of a container and 
+  **only** inside un-typed containers. (In a typed container it is impossible to 
+  tell the difference between an encoded element and a No-Op.)
+- Strongly-typed containers are only supported by the decoder (apart from for 
+  **bytes**/**bytearray**) and not for No-Op.
 - Encoder/decoder extensions are not supported at this time.
 
 
-# Why?
-The only existing implementation I was aware of at the time of writing ([simpleubjson](https://github.com/brainwater/simpleubjson)) had the following limitations:
+## Acknowledgement
 
-- Does not support efficient binary encoding
-- Only supports draft-9
-- Only supports individual Python types rather than anything implementing an interface (e.g. _Mapping_)
-- Does not decode nested arrays or objects in expected form
-- Lacks C extension speed-up
+This package was modified based on the py-ubjson package developed by
+[Iotic Labs Ltd.](https://www.iotics.com/) 
+Project URL: https://github.com/Iotic-Labs/py-ubjson
+
+The major changes were focused on supporting the Binary JData Specification 
+[Draft 1](Binary_JData_Specification.md) - an extended Universal Binary JSON 
+(UBJSON) Specification Draft-12 by adding the below new features:
+
+* BJData adds 4 new numeric data types: `uint16 [u]`, `uint32 [m]`, `uint64 [M]` 
+  and `float16 [h]`
+* BJData supports an optimized ND array container
+* BJData does not convert NaN/Inf/-Inf to `null`

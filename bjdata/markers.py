@@ -1,10 +1,11 @@
+# Copyright (c) 2020 Qianqian Fang <q.fang at neu.edu>. All rights reserved.
 # Copyright (c) 2019 Iotic Labs Ltd. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://github.com/Iotic-Labs/py-ubjson/blob/master/LICENSE
+#     https://github.com/fangq/pybj/blob/master/LICENSE
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,10 +14,10 @@
 # limitations under the License.
 
 
-"""UBJSON marker defitions"""
+"""BJData and UBJSON marker defitions"""
 
 # Value types
-TYPE_NONE = b'\x00'  # Used internally only, not part of ubjson specification
+TYPE_NONE = b'\x00'  # Used internally only, not part of bjdata specification
 TYPE_NULL = b'Z'
 TYPE_NOOP = b'N'
 TYPE_BOOL_TRUE = b'T'
@@ -24,8 +25,12 @@ TYPE_BOOL_FALSE = b'F'
 TYPE_INT8 = b'i'
 TYPE_UINT8 = b'U'
 TYPE_INT16 = b'I'
+TYPE_UINT16 = b'u'
 TYPE_INT32 = b'l'
+TYPE_UINT32 = b'm'
 TYPE_INT64 = b'L'
+TYPE_UINT64 = b'M'
+TYPE_FLOAT16 = b'h'
 TYPE_FLOAT32 = b'd'
 TYPE_FLOAT64 = b'D'
 TYPE_HIGH_PREC = b'H'
